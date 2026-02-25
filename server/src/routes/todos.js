@@ -1,7 +1,7 @@
 // 📁 MIRUJIMA/server/src/routes/todos.js
 
 const router = require("express").Router();
-const Todo = require("../models/todo");
+const Todo = require("../models/Todo");
 
 
 // 전체 Todo 조회 (/api/todos)
