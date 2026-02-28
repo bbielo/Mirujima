@@ -15,6 +15,36 @@ router.get("/", async (req, res) => {
     res.json(list);
 });
 
+// 요약
+router.get("/summary", async (req, res) => {
+    try {
+        const { month } = req.query;
+        if (!month) return res.status(400).json({ message: "month is required (YYYY-MM)" });
+
+        const from = `${month}-01`;
+        const to = `${month}-31`;
+
+        const list = await Todo.find({
+        userId: req.userId,
+        date: { $gte: from, $lte: to },
+        }).select("date done");
+
+        // date별 { total, remaining } 계산
+        const map = {};
+        for (const t of list) {
+        if (!map[t.date]) map[t.date] = { total: 0, remaining: 0 };
+        map[t.date].total += 1;
+        if (!t.done) map[t.date].remaining += 1;
+        }
+
+        // [{ date, total, remaining }]
+        const result = Object.entries(map).map(([date, v]) => ({ date, ...v }));
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ message: "Failed to load summary" });
+    }
+});
+
 // user별 Todo 생성
 router.post("/", async (req, res) => {
     const { title, date } = req.body;

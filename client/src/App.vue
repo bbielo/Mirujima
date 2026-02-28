@@ -44,6 +44,10 @@
         :columns="1"
         is-required
       />
+
+      <div style="margin-top:10px;">
+        남은 할 일: <strong>{{ remainingForSelectedDate }}</strong>
+      </div>
     </div>
 
     <!-- Todo 입력 -->
@@ -195,6 +199,26 @@ function logout() {
   logoutWithMessage("로그아웃되었습니다.");
 }
 
+// 요약
+const currentMonth = ref(new Date().toISOString().slice(0,7));
+const monthRemainingMap = ref({});
+
+const remainingForSelectedDate = computed(() => {
+  return monthRemainingMap.value[selectedDate.value] ?? 0;
+});
+
+async function loadMonthSummary(monthStr) {
+  const res = await fetch(`${API_TODOLIST}/summary?month=${monthStr}`, {
+    headers: { Authorization: `Bearer ${token.value}` },
+  });
+  if (!res.ok) return;
+
+  const data = await res.json();
+  const map = {};
+  data.forEach(row => map[row.date] = row.remaining);
+  monthRemainingMap.value = map;
+}
+
 // 권한
 async function register() {
   setAuthMessage({});
@@ -251,7 +275,7 @@ async function login() {
     sessionStorage.setItem("username", loggedInUser.value);
 
     startSessionTimer();
-    setAuthMessage({ info: "로그인 성공!" });
+    setAuthMessage({ info: "" });
 
     await loadTodoList();
   } catch {
@@ -294,7 +318,8 @@ async function addTodo() {
 
   newTitle.value = "";
   loadTodoList();
-}
+  loadMonthSummary(currentMonth.value);
+  }
 
 async function toggleTodo(todo) {
   const res = await fetch(`${API_TODOLIST}/${todo._id}`, {
@@ -309,6 +334,7 @@ async function toggleTodo(todo) {
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
 
   loadTodoList();
+  loadMonthSummary(currentMonth.value);
 }
 
 async function deleteTodo(id) {
@@ -320,6 +346,7 @@ async function deleteTodo(id) {
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
 
   loadTodoList();
+  loadMonthSummary(currentMonth.value);
 }
 
 // 수정 기능 추가
@@ -357,6 +384,7 @@ onMounted(() => {
   if (token.value) {
     startSessionTimer();
     loadTodoList();
+    loadMonthSummary(currentMonth.value);
   }
 });
 
