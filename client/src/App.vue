@@ -4,33 +4,29 @@
 
     <!-- 로그인 / 회원가입 -->
     <section style="border:1px solid #eee; padding:12px; border-radius:8px; margin:16px 0;">
-      <h3>로그인 / 회원가입</h3>
+      <h3 style="margin:0 0 8px;">
+        <template v-if="isLoggedIn">{{ loggedInUser }} 님</template>
+        <template v-else>로그인 / 회원가입</template>
+      </h3>
 
-      <div style="display:flex; gap:8px; margin-bottom:8px;">
-        <input v-model.trim="authUsername" placeholder="아이디" style="flex:1; padding:8px;" />
-        <input v-model="authPassword" type="password" placeholder="비밀번호"
-              style="flex:1; padding:8px;" />
+      <!-- 로그인 전 -->
+      <div v-if="!isLoggedIn">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <input v-model.trim="authUsername" placeholder="아이디" style="flex:1; padding:8px;" />
+          <input v-model="authPassword" type="password" placeholder="비밀번호" style="flex:1; padding:8px;" />
+        </div>
+
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button @click="register" :disabled="authLoading">회원가입</button>
+          <button @click="login" :disabled="authLoading">로그인</button>
+        </div>
       </div>
 
-      <div style="display:flex; gap:8px; align-items:center;">
-        <button @click="register" :disabled="authLoading">회원가입</button>
-        <button @click="login" :disabled="authLoading">로그인</button>
-
-        <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
-          <span v-if="isLoggedIn" style="color:green;">
-            로그인됨: {{ loggedInUser }}
-          </span>
-
-          <!-- 세션 카운트 -->
-          <span v-if="isLoggedIn" style="color:#555;">
-            ⏳ {{ remainingTimeFormatted }}
-          </span>
-
-          <!-- 60분 리셋 버튼 -->
-          <button v-if="isLoggedIn" @click="resetSessionTimer" title="세션 60분으로 연장">⟲</button>
-
-          <button v-if="isLoggedIn" @click="logout">로그아웃</button>
-        </div>
+      <!-- 로그인 후 -->
+      <div v-else style="display:flex; align-items:center; gap:8px;">
+        <span style="color:#555;">⏳ {{ remainingTimeFormatted }}</span>
+        <button @click="resetSessionTimer" title="세션 60분으로 연장">⟲</button>
+        <button @click="logout" style="margin-left:auto;">로그아웃</button>
       </div>
 
       <p v-if="authError" style="color:red; margin-top:8px;">{{ authError }}</p>
@@ -39,8 +35,12 @@
 
     <!-- Todo 입력 -->
     <form @submit.prevent="addTodo" style="display:flex; gap:8px;">
-      <input v-model.trim="newTitle" :disabled="!isLoggedIn"
-            placeholder="할 일 입력" style="flex:1; padding:8px;" />
+      <input
+        v-model.trim="newTitle"
+        :disabled="!isLoggedIn"
+        placeholder="할 일 입력"
+        style="flex:1; padding:8px;"
+      />
       <button type="submit" :disabled="!isLoggedIn">추가</button>
     </form>
 
@@ -50,17 +50,29 @@
 
     <!-- Todo 목록 -->
     <ul v-else style="margin-top:20px; padding:0; list-style:none;">
-      <li v-for="todo in todoList" :key="todo._id"
-          style="display:flex; align-items:center; gap:8px; padding:6px 0;">
+      <li
+        v-for="todo in todoList"
+        :key="todo._id"
+        style="display:flex; align-items:center; gap:8px; padding:6px 0;"
+      >
         <input type="checkbox" :checked="todo.done" @change="toggleTodo(todo)" />
 
-        <span :style="{ textDecoration: todo.done ? 'line-through' : 'none' }">
-          {{ todo.title }}
-        </span>
+        <template v-if="editId !== todo._id">
+          <span :style="{ textDecoration: todo.done ? 'line-through' : 'none' }">
+            {{ todo.title }}
+          </span>
 
-        <button style="margin-left:auto;" @click="deleteTodo(todo._id)">
-          삭제
-        </button>
+          <button style="margin-left:auto;" @click="startEdit(todo)">수정</button>
+          <button @click="deleteTodo(todo._id)">삭제</button>
+        </template>
+
+        <!-- 수정버튼 누를 시 -->
+        <template v-else>
+          <input v-model.trim="editTitle" style="flex:1; padding:6px;" />
+
+          <button @click="saveEdit(todo._id)">저장</button>
+          <button @click="cancelEdit">취소</button>
+        </template>
       </li>
     </ul>
   </div>
@@ -69,6 +81,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 
+/* ---------------- 상태 ---------------- */
 const todoList = ref([]);
 const newTitle = ref("");
 
@@ -85,6 +98,9 @@ const token = ref(sessionStorage.getItem("token") || "");
 const loggedInUser = ref(sessionStorage.getItem("username") || "");
 
 const isLoggedIn = computed(() => Boolean(token.value));
+
+const editId = ref(null);
+const editTitle = ref("");
 
 // 세션 60분으로 셋팅
 const remainingSeconds = ref(0);
@@ -141,6 +157,8 @@ function logoutWithMessage(msg) {
 
   todoList.value = [];
   newTitle.value = "";
+
+  cancelEdit();
 
   setAuthMessage({ error: msg, info: "" });
 }
@@ -278,6 +296,37 @@ async function deleteTodo(id) {
   loadTodoList();
 }
 
+// 수정 기능 추가
+function startEdit(todo) {
+  editId.value = todo._id;
+  editTitle.value = todo.title;
+}
+
+function cancelEdit() {
+  editId.value = null;
+  editTitle.value = "";
+}
+
+async function saveEdit(id) {
+  if (!editTitle.value) return;
+
+  const res = await fetch(`${API_TODOLIST}/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeader(),
+    },
+    body: JSON.stringify({ title: editTitle.value }),
+  });
+
+  if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
+  if (!res.ok) return setAuthMessage({ error: "수정 실패", info: "" });
+
+  cancelEdit();
+  loadTodoList();
+}
+
+/* ---------------- 생명주기 ---------------- */
 onMounted(() => {
   // sessionStorage에 token이 있으면 새로고침 시 유지됨 (창 닫으면 삭제됨)
   if (token.value) {
