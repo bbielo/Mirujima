@@ -30,7 +30,7 @@
       </div>
 
       <p v-if="authError" style="color:red; margin-top:8px;">{{ authError }}</p>
-      <p v-if="authInfo" style="color:green; margin-top:8px;">{{ authInfo }}</p>
+      <p v-if="authInfo && authInfo.length !== 0" style="color:green; margin-top:8px;">{{ authInfo }}</p>
     </section>
 
     <!-- 캘린더 -->
@@ -39,10 +39,14 @@
         <strong>선택 날짜</strong>
         <span style="color:#555;">{{ selectedDate }}</span>
       </div>
+
       <VDatePicker
         v-model="selectedDateObj"
-        :columns="1"
+        v-model:page="calendarPage"
+        mode="date"
         is-required
+        :columns="1"
+        :attributes="calendarAttrs"
       />
 
       <div style="margin-top:10px;">
@@ -86,7 +90,6 @@
         <!-- 수정버튼 누를 시 -->
         <template v-else>
           <input v-model.trim="editTitle" style="flex:1; padding:6px;" />
-
           <button @click="saveEdit(todo._id)">저장</button>
           <button @click="cancelEdit">취소</button>
         </template>
@@ -121,9 +124,18 @@ const editTitle = ref("");
 // 선택 날짜 (Date 객체로 관리)
 const selectedDateObj = ref(new Date());
 
+// v-calendar page 상태 (월 이동 감지용)
+const calendarPage = ref({
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear(),
+});
+
 // YYYY-MM-DD 문자열로 변환
 const selectedDate = computed(() => {
-  const d = selectedDateObj.value;
+  const raw = selectedDateObj.value;
+  const d = raw instanceof Date ? raw : new Date(raw);
+  if (isNaN(d)) return new Date().toISOString().slice(0, 10);
+
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -202,22 +214,73 @@ function logout() {
 // 요약
 const currentMonth = ref(new Date().toISOString().slice(0,7));
 const monthRemainingMap = ref({});
+const todayStr = new Date().toISOString().slice(0, 10);
 
 const remainingForSelectedDate = computed(() => {
-  return monthRemainingMap.value[selectedDate.value] ?? 0;
+  return monthRemainingMap.value[selectedDate.value]?.remaining ?? 0;
+});
+
+const calendarAttrs = computed(() => {
+  const attrs = [
+    {
+      key: "today",
+      dates: new Date(todayStr + "T00:00:00"),
+      highlight: { outline: true },
+    },
+    {
+      key: "selected",
+      dates:
+        selectedDateObj.value instanceof Date
+          ? selectedDateObj.value
+          : new Date(selectedDateObj.value),
+      highlight: true,
+    },
+  ];
+
+  for (const [dateStr, v] of Object.entries(monthRemainingMap.value)) {
+    const total = v?.total ?? 0;
+    const remaining = v?.remaining ?? 0;
+
+    // todo가 아예 없는 날은 표시 안 함
+    if (total <= 0) continue;
+
+    attrs.push({
+      key: `rem-${dateStr}`,
+      dates: new Date(dateStr + "T00:00:00"),
+      dot: {
+        color: remaining === 0 ? "green" : "red",
+      },
+      popover: {
+        label: remaining === 0 ? "모두 완료" : `${remaining}개 남음`,
+      },
+    });
+  }
+
+  return attrs;
 });
 
 async function loadMonthSummary(monthStr) {
+  if (!token.value) return;
+
   const res = await fetch(`${API_TODOLIST}/summary?month=${monthStr}`, {
-    headers: { Authorization: `Bearer ${token.value}` },
+    headers: authHeader(),
   });
+  if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
   if (!res.ok) return;
 
   const data = await res.json();
   const map = {};
-  data.forEach(row => map[row.date] = row.remaining);
+  data.forEach(row => {
+    map[row.date] = { total: row.total, remaining: row.remaining };
+  });
   monthRemainingMap.value = map;
 }
+
+watch(calendarPage, (page) => {
+  const m = String(page.month).padStart(2, "0");
+  currentMonth.value = `${page.year}-${m}`;
+  loadMonthSummary(currentMonth.value);
+});
 
 // 권한
 async function register() {
@@ -278,6 +341,7 @@ async function login() {
     setAuthMessage({ info: "" });
 
     await loadTodoList();
+    await loadMonthSummary(currentMonth.value);
   } catch {
     setAuthMessage({ error: "네트워크 오류(서버 켜져있는지 확인)" });
   } finally {
@@ -311,15 +375,15 @@ async function addTodo() {
       "Content-Type": "application/json",
       ...authHeader(),
     },
-    body: JSON.stringify({ title: newTitle.value, date: selectedDate.value })
+    body: JSON.stringify({ title: newTitle.value, date: selectedDate.value }),
   });
 
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
 
   newTitle.value = "";
-  loadTodoList();
-  loadMonthSummary(currentMonth.value);
-  }
+  await loadTodoList();
+  await loadMonthSummary(currentMonth.value);
+}
 
 async function toggleTodo(todo) {
   const res = await fetch(`${API_TODOLIST}/${todo._id}`, {
@@ -333,8 +397,8 @@ async function toggleTodo(todo) {
 
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
 
-  loadTodoList();
-  loadMonthSummary(currentMonth.value);
+  await loadTodoList();
+  await loadMonthSummary(currentMonth.value);
 }
 
 async function deleteTodo(id) {
@@ -345,8 +409,8 @@ async function deleteTodo(id) {
 
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
 
-  loadTodoList();
-  loadMonthSummary(currentMonth.value);
+  await loadTodoList();
+  await loadMonthSummary(currentMonth.value);
 }
 
 // 수정 기능 추가
@@ -376,7 +440,8 @@ async function saveEdit(id) {
   if (!res.ok) return setAuthMessage({ error: "수정 실패", info: "" });
 
   cancelEdit();
-  loadTodoList();
+  await loadTodoList();
+  await loadMonthSummary(currentMonth.value);
 }
 
 onMounted(() => {
