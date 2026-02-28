@@ -6,25 +6,28 @@ router.use(auth);
 
 // user별 Todo 목록 조회 (/api/todoList)
 router.get("/", async (req, res) => {
-    try {
-        const todoList = await Todo.find({ userId: req.userId }).sort({ createdAt: -1 });
-        res.json(todoList);
-    } catch {
-        res.status(500).json({ message: "Failed to fetch todoList" });
-    }
+    const { date } = req.query;
+
+    const filter = { userId: req.userId };
+    if (date) filter.date = date;
+
+    const list = await Todo.find(filter).sort({ createdAt: -1 });
+    res.json(list);
 });
 
 // user별 Todo 생성
 router.post("/", async (req, res) => {
-    try {
-        const { title } = req.body;
-        if (!title) return res.status(400).json({ message: "Title is required" });
+    const { title, date } = req.body;
+    const today = new Date().toISOString().slice(0, 10);
 
-        const todo = await Todo.create({ title, userId: req.userId });
-        res.status(201).json(todo);
-    } catch {
-        res.status(500).json({ message: "Failed to create todo" });
-    }
+    const todo = await Todo.create({
+        title,
+        done: false,
+        userId: req.userId,
+        date: date || today,
+    });
+
+    res.status(201).json(todo);
 });
 
 // user별 Todo 수정

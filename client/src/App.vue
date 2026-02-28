@@ -33,6 +33,19 @@
       <p v-if="authInfo" style="color:green; margin-top:8px;">{{ authInfo }}</p>
     </section>
 
+    <!-- 캘린더 -->
+    <div v-if="isLoggedIn" style="margin:16px 0; padding:12px; border:1px solid #eee; border-radius:8px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <strong>선택 날짜</strong>
+        <span style="color:#555;">{{ selectedDate }}</span>
+      </div>
+      <VDatePicker
+        v-model="selectedDateObj"
+        :columns="1"
+        is-required
+      />
+    </div>
+
     <!-- Todo 입력 -->
     <form @submit.prevent="addTodo" style="display:flex; gap:8px;">
       <input
@@ -79,9 +92,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 
-/* ---------------- 상태 ---------------- */
 const todoList = ref([]);
 const newTitle = ref("");
 
@@ -101,6 +113,22 @@ const isLoggedIn = computed(() => Boolean(token.value));
 
 const editId = ref(null);
 const editTitle = ref("");
+
+// 선택 날짜 (Date 객체로 관리)
+const selectedDateObj = ref(new Date());
+
+// YYYY-MM-DD 문자열로 변환
+const selectedDate = computed(() => {
+  const d = selectedDateObj.value;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+});
+
+watch(selectedDateObj, () => {
+  if (isLoggedIn.value) loadTodoList();
+});
 
 // 세션 60분으로 셋팅
 const remainingSeconds = ref(0);
@@ -239,9 +267,7 @@ async function loadTodoList() {
     return;
   }
 
-  const res = await fetch(API_TODOLIST, {
-    headers: authHeader(),
-  });
+  const res = await fetch(`${API_TODOLIST}?date=${selectedDate.value}`, { headers: authHeader() });
 
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
   if (!res.ok) {
@@ -261,7 +287,7 @@ async function addTodo() {
       "Content-Type": "application/json",
       ...authHeader(),
     },
-    body: JSON.stringify({ title: newTitle.value }),
+    body: JSON.stringify({ title: newTitle.value, date: selectedDate.value })
   });
 
   if (res.status === 401) return logoutWithMessage("세션이 만료되었습니다. 다시 로그인해주세요.");
@@ -326,7 +352,6 @@ async function saveEdit(id) {
   loadTodoList();
 }
 
-/* ---------------- 생명주기 ---------------- */
 onMounted(() => {
   // sessionStorage에 token이 있으면 새로고침 시 유지됨 (창 닫으면 삭제됨)
   if (token.value) {
