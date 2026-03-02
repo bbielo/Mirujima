@@ -1,9 +1,8 @@
 import { createApp } from "vue";
 import App from "./App.vue";
-
-import "./style.css";
-import "v-calendar/style.css";
-
+import router from "./router";
 import VCalendar from "v-calendar";
+import "v-calendar/style.css";
+import "./styles/app.css";
 
-createApp(App).use(VCalendar, {}).mount("#app");
+createApp(App).use(router).use(VCalendar, {}).mount("#app");
