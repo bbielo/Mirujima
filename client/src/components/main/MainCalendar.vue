@@ -1,9 +1,9 @@
 <template>
   <div class="panel">
     <div class="panel-head">
-      <div class="panel-title">캘린더</div>
+      <!-- <div class="panel-title">캘린더</div> -->
       <div class="panel-sub">
-        <strong>선택 날짜</strong>
+        <strong>선택한 날짜 </strong>
         <span style="color:#555;">{{ selectedDate }}</span>
       </div>
     </div>
@@ -21,7 +21,7 @@
     </div>
 
     <div class="panel-foot">
-      남은 할 일 <strong>{{ remaining }}</strong>
+      남은 할 일 <strong>{{ remaining }}</strong>개
     </div>
   </div>
 </template>
@@ -58,7 +58,6 @@ function toMonthStr(year, month) {
   return `${year}-${String(month).padStart(2, "0")}`;
 }
 
-// v-calendar 3.x: 월 이동/네비게이션 변화는 update:pages로 감지
 function onUpdatePages(pages) {
   if (!Array.isArray(pages) || pages.length === 0) return;
 

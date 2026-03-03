@@ -77,7 +77,8 @@ export function useTodos({ tokenRef, authHeaderFn, onUnauthorized }) {
             key: `rem-${dateStr}`,
             dates: new Date(dateStr + "T00:00:00"),
             dot: { color: remaining === 0 ? "green" : "red" },
-            popover: { label: remaining === 0 ? "모두 완료" : `${remaining}개 남음` },
+            // [bug] remaining업데이트 되지만 화면에 업데이트안됨
+            // popover: { label: remaining === 0 ? "모두 완료" : `${remaining}개 남음` }, 
         });
         }
 
