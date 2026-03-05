@@ -24,7 +24,7 @@ app.use(cors({
     origin: [
         "http://localhost:5173",
         "https://mirujima.onrender.com",
-        "https://mirujima.netlify.app/"
+        "https://mirujima.netlify.app/",
     ],
     credentials: true,
 }));
