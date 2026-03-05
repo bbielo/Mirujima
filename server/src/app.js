@@ -20,14 +20,15 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 // 전역 미들웨어
-app.use(cors({
-    origin: [
-        "http://localhost:5173",
-        "https://mirujima.onrender.com",
-        "https://mirujima.netlify.app/",
-    ],
-    credentials: true,
-}));
+// app.use(cors({
+//     origin: [
+//         "http://localhost:5173",
+//         "https://mirujima.onrender.com",
+//         "https://mirujima.netlify.app/",
+//     ],
+//     credentials: true,
+// }));
+app.use(cors());
 app.use(express.json());
 
 // 라우터
