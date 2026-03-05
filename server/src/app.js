@@ -23,7 +23,8 @@ const PORT = process.env.PORT || 4000;
 app.use(cors({
     origin: [
         "http://localhost:5173",
-        "hhttps://mirujima.onrender.com"
+        "https://mirujima.onrender.com",
+        "https://mirujima.netlify.app/"
     ],
     credentials: true,
 }));
