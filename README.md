@@ -4,7 +4,7 @@
 >  👉 [구경하기](https://mirujima.netlify.app)<br />
 >  📝 [프로젝트 일지](https://www.notion.so/MIRUGIMA-311bf6f141ec80d184b1eda2dcd4559b?source=copy_link)<br />
 
-<br /><br /><br /><br /><br />
+<br /><br /><br />
 
 # 📌 Table Of Contents
 * [📖 Introduction](#-introduction)
