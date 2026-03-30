@@ -1,4 +1,5 @@
-const API_AUTH = "http://localhost:5000/api/auth";
+const API = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const API_AUTH = `${API}/api/auth`;
 
 async function safeJson(res) {
     try {

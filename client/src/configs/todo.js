@@ -1,4 +1,5 @@
-const API_TODOLIST = "http://localhost:5000/api/todoList";
+const API = (import.meta.env.VITE_API_URL || "").replace(/\/$/, "");
+const API_TODOLIST = `${API}/api/todoList`;
 
 async function safeJson(res) {
     try {

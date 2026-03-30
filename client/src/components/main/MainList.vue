@@ -7,7 +7,7 @@
 
         <form class="todo-form" @submit.prevent="$emit('add')">
         <InputBase v-model="titleModel" placeholder="할 일 입력" />
-        <ButtonBase variant="primary" @click="$emit('add')">추가</ButtonBase>
+        <ButtonBase variant="primary" @click="$emit('add')">+</ButtonBase>
         </form>
 
         <ul class="todo-list">
